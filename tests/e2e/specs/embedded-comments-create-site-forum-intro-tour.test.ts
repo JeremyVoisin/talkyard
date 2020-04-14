@@ -5,18 +5,18 @@ import assert = require('assert');
 import fs = require('fs');
 import server = require('../utils/server');
 import utils = require('../utils/utils');
-import pagesFor = require('../utils/pages-for');
+import { TyE2eTestBrowser } from '../utils/pages-for';
 import settings = require('../utils/settings');
 import make = require('../utils/make');
 import logAndDie = require('../utils/log-and-die');
 import c = require('../test-constants');
 
-declare let browser: any;
+let browser: TyE2eTestBrowser;
 
 let everyonesBrowsers;
 let owen;
-let owensBrowser;
-let strangersBrowser;
+let owensBrowser: TyE2eTestBrowser;
+let strangersBrowser: TyE2eTestBrowser;
 
 let idAddress: IdAddress;
 let siteId: any;
@@ -29,7 +29,7 @@ const pageAaaSlug = 'emb-cmts-aaa.html';
 describe("emb cmts forum intro tour for admins  TyT6AKBR2044", () => {
 
   it("initialize people", () => {
-    everyonesBrowsers = _.assign(browser, pagesFor(browser));
+    everyonesBrowsers = new TyE2eTestBrowser(wdioBrowser);
     owensBrowser = everyonesBrowsers;
     owen = make.memberOwenOwner();
   });

@@ -4,13 +4,13 @@ import * as _ from 'lodash';
 import assert = require('assert');
 import server = require('../utils/server');
 import utils = require('../utils/utils');
-import pagesFor = require('../utils/pages-for');
+import { TyE2eTestBrowser } from '../utils/pages-for';
 import settings = require('../utils/settings');
 import make = require('../utils/make');
 import logAndDie = require('../utils/log-and-die');
 import c = require('../test-constants');
 
-declare let browser: any;
+let browser: TyE2eTestBrowser;
 declare let browserA: any;
 declare let browserB: any;
 
@@ -40,9 +40,9 @@ let xyzTitle = "xyz_title";
 describe("basic publ search:", () => {
 
   it("initialize people", () => {
-    everyone = _.assign(browser, pagesFor(browser));
-    owen = _.assign(browserA, pagesFor(browserA), make.memberOwenOwner());
-    maria = _.assign(browserB, pagesFor(browserB), make.memberMaria());
+    everyone = new TyE2eTestBrowser(wdioBrowser);
+    owen = _.assign(new TyE2eTestBrowser(browserA), make.memberOwenOwner());
+    maria = _.assign(new TyE2eTestBrowser(browserB), make.memberMaria());
     // Reuse the same browser.
     stranger = maria;
     guest = maria;

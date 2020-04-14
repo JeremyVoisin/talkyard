@@ -1,5 +1,6 @@
 declare const global: any;
 
+import * as _ from 'lodash';
 import TyWdioReporter = require('./wdio-progress-reporter');
 import settings = require('./utils/settings');
 import server = require('./utils/server');
@@ -356,6 +357,18 @@ const config: WebdriverIO.Config = {
     settings.useDevtoolsProtocol =
         !!config.services.find(s => s === 'devtools' || s[0] === 'devtools');
     global.settings = settings;
+
+    // It's nice if browserA is available also in not-multiremote tests with one browser.
+    // so there's a way to refer to just *one* browser instead of 
+    if (!global.browserA && _.isArray(capabilities) && capabilities.length === 1) {
+      global.browserA = global.browser;
+    }
+
+    global.wdioBrowser = global.browser;
+    global.wdioBrowserA = global.browserA;
+    global.wdioBrowserB = global.browserB; // only in multiremote tests
+    global.wdioBrowserC = global.browserC; //  — "" —
+
     if (settings.debugBefore) {
       console.log("*** Paused, just before starting test. Now you can connect a debugger. ***");
       global.browser.debug();

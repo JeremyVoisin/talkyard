@@ -4,13 +4,13 @@ import * as _ from 'lodash';
 import assert = require('assert');
 import server = require('../utils/server');
 import utils = require('../utils/utils');
-import pagesFor = require('../utils/pages-for');
+import { TyE2eTestBrowser } from '../utils/pages-for';
 import settings = require('../utils/settings');
 import make = require('../utils/make');
 import logAndDie = require('../utils/log-and-die');
 import c = require('../test-constants');
 
-declare let browser: any;
+let browser: TyE2eTestBrowser;
 declare let browserA: any;
 declare let browserB: any;
 
@@ -18,7 +18,7 @@ let everyone;
 let owen;
 let maria;
 let guest; // should rename to guestsBrowser
-let guestsBrowser;
+let guestsBrowser: TyE2eTestBrowser;
 
 let idAddress: IdAddress;
 let siteId: SiteId;
@@ -46,9 +46,9 @@ const mariaMentionsOwen = "mariaMentionsOwen @owen_owner, hi!";
 describe("unsubscribe  TyT2ABKG4RUR", () => {
 
   it("initialize people", () => {
-    everyone = _.assign(browser, pagesFor(browser));
-    owen = _.assign(browserA, pagesFor(browserA), make.memberOwenOwner());
-    maria = _.assign(browserB, pagesFor(browserB), make.memberMaria());
+    everyone = new TyE2eTestBrowser(wdioBrowser);
+    owen = _.assign(new TyE2eTestBrowser(browserA), make.memberOwenOwner());
+    maria = _.assign(new TyE2eTestBrowser(browserB), make.memberMaria());
     // Reuse the same browser.
     guest = maria;
     guestsBrowser = guest;

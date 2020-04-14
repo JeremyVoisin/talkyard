@@ -5,18 +5,18 @@ import assert = require('assert');
 import fs = require('fs');
 import server = require('../utils/server');
 import utils = require('../utils/utils');
-import pagesFor = require('../utils/pages-for');
+import { TyE2eTestBrowser } from '../utils/pages-for';
 import settings = require('../utils/settings');
 import make = require('../utils/make');
 import logAndDie = require('../utils/log-and-die');
 import c = require('../test-constants');
 
-declare let browser: any;
+let browser: TyE2eTestBrowser;
 
 let everyonesBrowsers;
 let maria;
-let mariasBrowser;
-let strangersBrowser;
+let mariasBrowser: TyE2eTestBrowser;
+let strangersBrowser: TyE2eTestBrowser;
 
 let idAddress: IdAddress;
 let siteId: any;
@@ -34,7 +34,7 @@ const pageTallerSlug = 'emb-cmts-taller.html';
 describe("embedded-comments-scroll  TyT2K4DHR49", () => {
 
   it("initialize people", () => {
-    everyonesBrowsers = _.assign(browser, pagesFor(browser));
+    everyonesBrowsers = new TyE2eTestBrowser(wdioBrowser);
     mariasBrowser = everyonesBrowsers;
     maria = make.memberMaria();
   });

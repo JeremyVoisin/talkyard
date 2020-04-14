@@ -4,7 +4,7 @@ import * as _ from 'lodash';
 import assert = require('assert');
 import server = require('../utils/server');
 import utils = require('../utils/utils');
-import pagesFor = require('../utils/pages-for');
+import { TyE2eTestBrowser } from '../utils/pages-for';
 import settings = require('../utils/settings');
 import make = require('../utils/make');
 import logAndDie = require('../utils/log-and-die');
@@ -24,9 +24,9 @@ const forumTitle = "Reset Pwd Test Forum";
 describe("password-login-reset  TyT5KAES20W", function() {
 
   it("initialize people", function() {
-    everyone = _.assign(browser, pagesFor(browser));
-    owen = _.assign(browserA, pagesFor(browserA), make.memberOwenOwner());
-    michael = _.assign(browserB, pagesFor(browserB), make.memberMichael());
+    everyone = new TyE2eTestBrowser(wdioBrowser);
+    owen = _.assign(new TyE2eTestBrowser(browserA), make.memberOwenOwner());
+    michael = _.assign(new TyE2eTestBrowser(browserB), make.memberMichael());
   });
 
   it("import a site", function() {
@@ -101,7 +101,7 @@ describe("password-login-reset  TyT5KAES20W", function() {
   let resetPwdPageLink;
 
   it("... he gets a reset-pwd email with a choose-new-password page link", function() {
-    const email = server.getLastEmailSenTo(idAddress.id, michael.emailAddress, michael);
+    const email = server.getLastEmailSenTo(idAddress.id, michael.emailAddress, wdioBrowserA);
     resetPwdPageLink = utils.findFirstLinkToUrlIn(
       idAddress.origin + '/-/reset-password/choose-password/', email.bodyHtmlText);
   });
