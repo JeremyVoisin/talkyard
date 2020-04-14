@@ -12,7 +12,7 @@ import createTestData = require('./create-site-impl');
 const logUnusual = logAndDie.logUnusual, die = logAndDie.die, dieIf = logAndDie.dieIf;
 const logMessage = logAndDie.logMessage;
 
-declare let browser: TyE2eTestBrowser;
+let browser: TyE2eTestBrowser;
 
 const newMembersEmail = 'e2e-test--mia@example.com';
 const newMembersTopicTitle = 'newMembersTopicTitle';

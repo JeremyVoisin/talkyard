@@ -19,9 +19,9 @@ const embeddingOrigin = 'http://e2e-test-emb-forum.localhost:8080';
 const embPageOneSlug = 'emb-page-one.html';
 const embPageTwoSlug = 'emb-page-two.html';
 
-declare var browser: any;
-declare var browserA: any;
-declare var browserB: any;
+
+
+
 
 let everyonesBrowsers;
 let richBrowserA;

@@ -171,6 +171,9 @@ interface WdioV4BackwCompatBrower extends WebdriverIO.BrowserObject {
   switchTab: (newTabId) => void;
 }
 
+// Don't use, deprecated.
+export interface MemberBrowser extends TyE2eTestBrowser, Member {
+}
 
 // Later, change TyAllE2eTestBrowsers to a class / interface that
 // only makes available the TyE2eTestBrowser methods that work with all
@@ -289,6 +292,14 @@ export class TyE2eTestBrowser {
       });
     }
 
+    deleteCookie(cookieName: string) {
+      this.#br.deleteCookie(cookieName);
+    }
+
+    deleteAllCookies() {
+      this.#br.deleteAllCookies();
+    }
+
     refresh() {
       this.#br.refresh();
     }
@@ -300,6 +311,9 @@ export class TyE2eTestBrowser {
       this.__updateIsWhere();
     }
 
+    back() {
+      this.#br.back();
+    }
 
     // Don't use. Change to go2 everywhere, then rename to 'go', and remove this old 'go'.
     go(url, opts: { useRateLimits?: boolean } = {}) {
@@ -6860,9 +6874,11 @@ export class TyE2eTestBrowser {
       },
 
       loginWithPasswordViaTopbar: (username: string | Member | { username, password },
-            password?: string, opts?: { resultInError?: boolean }) => {
+            optsOrPassword?: string | { resultInError?: boolean }) => {
+        let password = optsOrPassword;
+        let opts;
         console.log(`TyE2eApi: loginWithPasswordViaTopbar`);
-        if (!opts && password && _.isObject(password)) {
+        if (password && _.isObject(password)) {
           opts = <any> password;
           password = null;
         }
@@ -7179,7 +7195,4 @@ export class TyE2eTestBrowser {
     }
     assert(bugRetry <= maxBugRetry, "Couldn't set checkbox to checked = " + checked);
   }
-
-  // backw compat, for now
-  //api['replies'] = this.topic;   // iick
 }

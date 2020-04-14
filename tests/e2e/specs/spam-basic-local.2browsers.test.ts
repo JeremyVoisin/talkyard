@@ -4,26 +4,22 @@ import * as _ from 'lodash';
 import assert = require('assert');
 import server = require('../utils/server');
 import utils = require('../utils/utils');
-import { TyE2eTestBrowser } from '../utils/pages-for';
+import { TyE2eTestBrowser, TyAllE2eTestBrowsers } from '../utils/pages-for';
 import settings = require('../utils/settings');
 import make = require('../utils/make');
 import logAndDie = require('../utils/log-and-die');
 import c = require('../test-constants');
 
-let browser: TyE2eTestBrowser;
-declare let browserA: any;
-declare let browserB: any;
-
-let everyone;
-let owen;
+let everyone: TyAllE2eTestBrowsers;
+let owen: Member;
 let owensBrowser: TyE2eTestBrowser;
-let maria;
+let maria: Member;
 let mariasBrowser: TyE2eTestBrowser;
-let mallory;
+let mallory: Member;
 let mallorysBrowser: TyE2eTestBrowser;
-let mons;
+let mons: Member;
 let monsBrowser: TyE2eTestBrowser;
-let guest;
+let guest: TestGuest;
 let guestsBrowser: TyE2eTestBrowser;
 let strangersBrowser: TyE2eTestBrowser;
 
@@ -65,8 +61,8 @@ describe("spam test, no external services  TyT530KRM1R", () => {
 
   it("Owen and Mallory go to the homepage and log in", () => {
     everyone.go(idAddress.origin);
-    browserA.assertPageTitleMatches(forumTitle);
-    browserB.assertPageTitleMatches(forumTitle);
+    owensBrowser.assertPageTitleMatches(forumTitle);
+    mallorysBrowser.assertPageTitleMatches(forumTitle);
     owensBrowser.complex.loginWithPasswordViaTopbar(owen);
     owensBrowser.disableRateLimits();
     mallorysBrowser.complex.loginWithPasswordViaTopbar(mallory);

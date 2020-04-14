@@ -20,9 +20,9 @@ const embPageOneSlug = 'emb-page-one.html';
 const embPageTwoSlug = 'emb-page-two.html';
 const ssoDummyLoginSlug = 'sso-dummy-login.html';
 
-declare var browser: any;
-declare var browserA: any;
-declare var browserB: any;
+
+
+
 
 let everyonesBrowsers;
 let richBrowserA;

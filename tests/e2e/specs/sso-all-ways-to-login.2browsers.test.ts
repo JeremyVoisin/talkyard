@@ -9,9 +9,9 @@ import { TyE2eTestBrowser } from '../utils/pages-for';
 import settings = require('../utils/settings');
 import c = require('../test-constants');
 
-declare var browser: any;
-declare var browserA: any;
-declare var browserB: any;
+
+
+
 
 let everyonesBrowsers;
 let richBrowserA;

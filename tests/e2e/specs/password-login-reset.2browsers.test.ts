@@ -4,18 +4,15 @@ import * as _ from 'lodash';
 import assert = require('assert');
 import server = require('../utils/server');
 import utils = require('../utils/utils');
-import { TyE2eTestBrowser } from '../utils/pages-for';
+import { TyE2eTestBrowser, MemberBrowser } from '../utils/pages-for';
 import settings = require('../utils/settings');
 import make = require('../utils/make');
 import logAndDie = require('../utils/log-and-die');
 
-declare var browser: any;
-declare var browserA: any;
-declare var browserB: any;
 
 let everyone;
-let owen;
-let michael;
+let owen: MemberBrowser;
+let michael: MemberBrowser;
 
 let idAddress;
 const forumTitle = "Reset Pwd Test Forum";
@@ -41,8 +38,8 @@ describe("password-login-reset  TyT5KAES20W", function() {
 
   it("Owen and Michael go to the homepage", function() {
     everyone.go(idAddress.origin);
-    browserA.assertPageTitleMatches(forumTitle);
-    browserB.assertPageTitleMatches(forumTitle);
+    owen.assertPageTitleMatches(forumTitle);
+    michael.assertPageTitleMatches(forumTitle);
     // There'll be lots of login attempts.
     everyone.disableRateLimits();
   });

@@ -13,9 +13,9 @@ import c = require('../test-constants');
 
 declare const $$: any; // webdriver.io global utility
 
-declare var browser: any;
-declare var browserA: any;
-declare var browserB: any;
+
+
+
 
 let everyonesBrowsers;
 let richBrowserA;

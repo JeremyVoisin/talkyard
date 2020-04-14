@@ -4,23 +4,19 @@ import * as _ from 'lodash';
 import assert = require('assert');
 import server = require('../utils/server');
 import utils = require('../utils/utils');
-import { TyE2eTestBrowser } from '../utils/pages-for';
+import { TyE2eTestBrowser, TyAllE2eTestBrowsers, MemberBrowser } from '../utils/pages-for';
 import settings = require('../utils/settings');
 import make = require('../utils/make');
 import logAndDie = require('../utils/log-and-die');
 
-declare var browser: any;
-declare var browserA: any;
-declare var browserB: any;
-declare var browserC: any;
 
-var everyone;
-var owen;
-var michael;
-var maria;
+let everyone: TyAllE2eTestBrowsers;
+let owen: MemberBrowser;
+let michael: MemberBrowser;
+let maria: MemberBrowser;
 
-var idAddress;
-var forumTitle = "Login to Read Forum";
+let idAddress;
+const forumTitle = "Login to Read Forum";
 
 
 describe("settings-toggle-login-required [TyT4GKBW20]", function() {
@@ -42,9 +38,9 @@ describe("settings-toggle-login-required [TyT4GKBW20]", function() {
 
   it("Owen, Maria and Michael sees the forum, when not logged in", function() {
     everyone.go(idAddress.origin);
-    browserA.assertPageTitleMatches(forumTitle);
-    browserB.assertPageTitleMatches(forumTitle);
-    browserC.assertPageTitleMatches(forumTitle);
+    owen.assertPageTitleMatches(forumTitle);
+    michael.assertPageTitleMatches(forumTitle);
+    maria.assertPageTitleMatches(forumTitle);
   });
 
   it("Owen logs in to admin area", function() {

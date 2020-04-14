@@ -6,16 +6,13 @@ import assert = require('../utils/ty-assert');
 import server = require('../utils/server');
 import utils = require('../utils/utils');
 import { buildSite } from '../utils/site-builder';
-import { TyE2eTestBrowser } from '../utils/pages-for';
+import { TyE2eTestBrowser, TyAllE2eTestBrowsers } from '../utils/pages-for';
 import settings = require('../utils/settings');
 import lad = require('../utils/log-and-die');
 import c = require('../test-constants');
 
-declare var browser: any;
-declare var browserA: any;
-declare var browserB: any;
 
-let everyonesBrowsers: TyE2eTestBrowser;
+let everyonesBrowsers: TyAllE2eTestBrowsers;
 let richBrowserA: TyE2eTestBrowser;
 let richBrowserB: TyE2eTestBrowser;
 let owen: Member;

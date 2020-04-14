@@ -12,8 +12,8 @@ import logAndDie = require('../utils/log-and-die');
 import c = require('../test-constants');
 
 let browser: TyE2eTestBrowser;
-declare var browserA: any;
-declare var browserB: any;
+
+
 
 let forum: LargeTestForum;
 

@@ -9,9 +9,9 @@ import { TyE2eTestBrowser } from '../utils/pages-for';
 import logAndDie = require('../utils/log-and-die');
 import c = require('../test-constants');
 
-declare var browser: any;
-declare var browserA: any;
-declare var browserB: any;
+
+
+
 
 let forum: LargeTestForum;
 

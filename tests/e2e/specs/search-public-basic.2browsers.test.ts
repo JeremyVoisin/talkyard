@@ -4,21 +4,17 @@ import * as _ from 'lodash';
 import assert = require('assert');
 import server = require('../utils/server');
 import utils = require('../utils/utils');
-import { TyE2eTestBrowser } from '../utils/pages-for';
+import { TyE2eTestBrowser, MemberBrowser, TyAllE2eTestBrowsers } from '../utils/pages-for';
 import settings = require('../utils/settings');
 import make = require('../utils/make');
 import logAndDie = require('../utils/log-and-die');
 import c = require('../test-constants');
 
-let browser: TyE2eTestBrowser;
-declare let browserA: any;
-declare let browserB: any;
-
-let everyone;
-let owen;
-let maria;
-let stranger;
-let guest;
+let everyone: TyAllE2eTestBrowsers;
+let owen: MemberBrowser;
+let maria: MemberBrowser;
+let stranger: TyE2eTestBrowser;
+let guest: TyE2eTestBrowser;
 
 let idAddress: IdAddress;
 let forumTitle = "Publ Search Forum";
@@ -59,8 +55,8 @@ describe("basic publ search:", () => {
 
   it("Owen and Maria go to the homepage and log in", () => {
     everyone.go(idAddress.origin);
-    browserA.assertPageTitleMatches(forumTitle);
-    browserB.assertPageTitleMatches(forumTitle);
+    owen.assertPageTitleMatches(forumTitle);
+    maria.assertPageTitleMatches(forumTitle);
     owen.complex.loginWithPasswordViaTopbar(owen);
     maria.complex.loginWithPasswordViaTopbar(maria);
     // Maria will search a lot.

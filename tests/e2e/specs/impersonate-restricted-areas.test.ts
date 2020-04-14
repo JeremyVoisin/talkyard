@@ -10,7 +10,7 @@ import make = require('../utils/make');
 import logAndDie = require('../utils/log-and-die');
 import c = require('../test-constants');
 
-declare var browser: any;
+
 
 var owen;
 var maria;

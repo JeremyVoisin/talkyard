@@ -11,9 +11,9 @@ import settings = require('../utils/settings');
 import c = require('../test-constants');
 import * as lad from '../utils/log-and-die';
 
-declare var browser: any;
-declare var browserA: any;
-declare var browserB: any;
+
+
+
 
 let everyonesBrowsers;
 let richBrowserA;

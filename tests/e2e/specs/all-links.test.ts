@@ -11,7 +11,7 @@ import logAndDie = require('../utils/log-and-die');
 import c = require('../test-constants');
 const SystemUserId = 1;  // [commonjs]
 
-declare var browser: any;
+let browser: TyE2eTestBrowser;
 
 
 describe('all links', function() {

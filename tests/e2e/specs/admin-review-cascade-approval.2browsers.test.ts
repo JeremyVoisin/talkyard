@@ -11,11 +11,7 @@ import settings = require('../utils/settings');
 import lad = require('../utils/log-and-die');
 import c = require('../test-constants');
 
-declare var browser: any;
-declare var browserA: any;
-declare var browserB: any;
 
-let everyonesBrowsers;
 let richBrowserA;
 let richBrowserB;
 let owen: Member;
@@ -77,8 +73,7 @@ describe("admin-review-cascade-approval  TyT0SKDE24", () => {
   });
 
   it("initialize people", () => {
-    everyonesBrowsers = new TyE2eTestBrowser(wdioBrowser);
-    richBrowserA = new TyE2eTestBrowser(browserA);  NOT_DEFINED what what, continue heer.
+    richBrowserA = new TyE2eTestBrowser(browserA);
     richBrowserB = new TyE2eTestBrowser(browserB);
 
     owen = forum.members.owen;
