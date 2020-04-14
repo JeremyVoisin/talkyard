@@ -950,16 +950,20 @@ trait UserSiteDaoMixin extends SiteTransaction {
   }
 
 
-  def loadUsersWithUsernamePrefix(usernamePrefix: String, limit: Int): immutable.Seq[User] = {
-    // Would it be better UX to do lowercase match?
-    val withPrefixAnd = usernamePrefix.isEmpty ? "" | "username like ? and"
+  def loadUsersWithUsernamePrefix(usernamePrefix: String,
+        caseSensitive: Boolean, limit: Int): immutable.Seq[User] = {
+    // 'ilike' is a PostgreSQL extension.
+    // There's an index on username lowercase: dw1_users_site_usernamelower__u
+    // but not mixed case. Currently, we do only owercase matching though.
+    val like = caseSensitive ? "like" | "ilike"
+    val withPrefixAnd = usernamePrefix.isEmpty ? "" | s"username $like ? and"
     val query = i"""
       select $UserSelectListItemsNoGuests
       from users3 u
       where $withPrefixAnd u.site_id = ?
         and u.user_id >= $LowestTalkToMemberId
         and u.trust_level is not null  -- or  u.is_group nowadays?
-      order by u.username
+      order by lower(u.username)
       limit $limit
       """
     var values = List(siteId.asAnyRef)

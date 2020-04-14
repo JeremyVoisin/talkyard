@@ -740,7 +740,8 @@ trait UserDao {
   }
 
 
-  def loadUsersWithUsernamePrefix(prefix: String, limit: Int): immutable.Seq[User] = {
+  def loadUsersWithUsernamePrefix(prefix: String, caseSensitive: Boolean, limit: Int)
+        : immutable.Seq[User] = {
     COULD_OPTIMIZE // cache, sth like:
     //memCache.lookup[immutable.Seq[User]](
     //  membersByPrefixKey(prefix, "u"),
@@ -748,7 +749,8 @@ trait UserDao {
     // BUT then there'd be a DoS attack: iterate through all prefixes and exhaust
     // the cache. Note that there's a million? Unicode chars, so restricting the
     // prefix length to <= 2 chars won't work (cache size 1e6 ^ 2 = 1e12).
-    readOnlyTransaction(_.loadUsersWithUsernamePrefix(prefix, limit = limit))
+    readOnlyTransaction(_.loadUsersWithUsernamePrefix(
+      prefix, caseSensitive = caseSensitive, limit = limit))
   }
 
 
