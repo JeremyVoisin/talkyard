@@ -159,18 +159,6 @@ function typeAndAsString(sth): string {
   return `type: ${typeof sth}, as string: ${JSON.stringify(sth)}`;
 }
 
-
-interface WdioV4BackwCompatBrower extends WebdriverIO.BrowserObject {
-  isVisible: (selector: string) => boolean;
-  waitForVisible: (selector: string, options?: WebdriverIO.WaitForOptions) => boolean;
-  isEnabled: (selector: string) => boolean;
-  isExisting: (selector: string) => boolean;
-  getHTML: (selector: string) => string;
-  getTabIds: () => string[];
-  getCurrentTabId: () => string;
-  switchTab: (newTabId) => void;
-}
-
 // Don't use, deprecated.
 export interface MemberBrowser extends TyE2eTestBrowser, Member {
 }
@@ -185,6 +173,12 @@ export type TyAllE2eTestBrowsers = TyE2eTestBrowser;
 
 
 export class TyE2eTestBrowser {
+
+  #br: WebdriverIO.BrowserObject;
+
+  constructor(aWdioBrowser: WebdriverIO.BrowserObject) {
+    this.#br = aWdioBrowser;
+  }
 
   // The global $ might be for the wrong this.#br somehow, so:
 
@@ -211,9 +205,6 @@ export class TyE2eTestBrowser {
     this.#br.debug();
   }
 
-
-  #br: WdioV4BackwCompatBrower;
-
   #firstWindowHandle;
   #hostsVisited = {};
   #isWhere: IsWhere | U;
@@ -221,23 +212,6 @@ export class TyE2eTestBrowser {
 
   isOnEmbeddedPage(): boolean {
     return this.#isWhere && IsWhere.EmbFirst <= this.#isWhere && this.#isWhere <= IsWhere.EmbLast;
-  }
-
-  constructor(aWdioBrowser: WebdriverIO.BrowserObject) {
-    this.#br = aWdioBrowser as WdioV4BackwCompatBrower;
-    this.#br.isVisible = (selector: string) => this.#br.$(selector).isDisplayed();
-    this.#br.waitForVisible = (s, os): boolean => this.#br.$(s).waitForDisplayed(os);
-    this.#br.isEnabled = (selector: string) => this.#br.$(selector).isEnabled();
-    this.#br.isExisting = (selector: string) => this.#br.$(selector).isExisting();
-    this.#br.getHTML = (selector: string) => this.#br.$(selector).getHTML();
-    this.#br.getTabIds = () => this.#br.getWindowHandles();
-    this.#br.getCurrentTabId = () => this.#br.getWindowHandle();
-
-    // Don't invoke debug() in more than one this.#br.
-    //this.#br.debug = browserA ? browserA.debug.bind(browserA) : this.#br.debug.bind(this.#br);
-
-    // There's also:  this.#br.switchWindow(urlOrTitleToMatch: string | RegExp)
-    this.#br.switchTab = () => { this.#br.switchToWindow.apply(this.#br, arguments) };
   }
 
 
@@ -298,6 +272,10 @@ export class TyE2eTestBrowser {
 
     deleteAllCookies() {
       this.#br.deleteAllCookies();
+    }
+
+    execute<T>(script: ((...args: any[]) => T), ...args: any[]): T {
+      return this.#br.execute.apply(this.#br, arguments);
     }
 
     refresh() {
@@ -442,8 +420,9 @@ export class TyE2eTestBrowser {
     }
 
     // The real waitUntil doesn't work, the first test makes any  $('sth')
-    // inside be just an empty obj {}.
-    // Also, this one can log a message about what we're waiting for.
+    // inside be just an empty obj {}.  — Mabe I forgot 'this'? Should be: this.$().
+    // Anyway, this wait fn logs a message about what we're waiting for, can be nice.
+    //
     waitUntil(fn: () => Boolean, ps: {
         timeoutMs?: number,
         timeoutIsFine?: boolean,
@@ -612,15 +591,20 @@ export class TyE2eTestBrowser {
     }
 
 
+    numWindowsOpen(): number {
+      return this.#br.getWindowHandles().length;
+    }
+
+
     numTabs(): number {
-      return this.#br.getTabIds().length;
+      return this.#br.getWindowHandles().length;
     }
 
     waitForMinBrowserTabs(howMany: number) {
       let numNow = -1;
       const message = () => `Waiting for >= ${howMany} tabs, currently ${numNow} tabs...`;
       this.waitUntil(() => {
-        numNow = this.#br.getTabIds().length;
+        numNow = this.numWindowsOpen();
         return numNow >= howMany;
       }, { message });
     }
@@ -630,7 +614,7 @@ export class TyE2eTestBrowser {
       const message = () => `Waiting for <= ${howMany} tabs, currently ${numNow} tabs...`;
       this.waitUntil(() => {
         // Cannot be 0, that'd mean the test made itself disappear?
-        numNow = this.#br.getWindowHandles().length; // this.#br.getTabIds().length;
+        numNow = this.#br.getWindowHandles().length;
         return numNow <= Math.max(1, howMany);
       }, { message });
     }
@@ -663,17 +647,17 @@ export class TyE2eTestBrowser {
       for (let i = 0; i < 3; ++i) {
         logMessage("Waiting for other window to open, to prevent weird Selenium errors...");
         this.#br.pause(1500);
-        if (this.#br.getTabIds().length > 1)
+        if (this.numWindowsOpen() > 1)
           break;
       }
-      const ids = this.#br.getTabIds();
-      const currentId = this.#br.getCurrentTabId();
+      const ids = this.#br.getWindowHandles();
+      const currentId = this.#br.getWindowHandle();
       for (let i = 0; i < ids.length; ++i) {
         const id = ids[i];
         if (id !== currentId) {
-          logMessage(`Calling this.#br.switchTab(id), id = ${id}...`);
-          this.#br.switchTab(id);
-          logMessage(`... done, current tab id is now: ${this.#br.getCurrentTabId()}.`);
+          logMessage(`Calling this.#br.switchToWindow(id), id = ${id}...`);
+          this.#br.switchToWindow(id);
+          logMessage(`... done, current tab id is now: ${this.#br.getWindowHandle()}.`);
           if (isWhereAfter) {
             this.#isWhere = isWhereAfter;
           }
@@ -720,7 +704,7 @@ export class TyE2eTestBrowser {
           logMessage(`Switching to winIds[0] = ${winIds[0]}`);
           switchToId = winIds[0];
         }
-        this.#br.switchTab(switchToId);
+        this.#br.switchToWindow(switchToId);
       }
       catch (ex) {
         // A race? The window just closed itself? Google and Facebook auto closes
@@ -729,7 +713,7 @@ export class TyE2eTestBrowser {
         logError(`Error switching window [TyEE2ESWWIN]`, ex);
         const idsAgain = this.#br.getWindowHandles();
         logMessage(`Trying again, switching to idsAgain[0]: ${idsAgain[0]} ...`);
-        this.#br.switchTab(idsAgain[0]);
+        this.#br.switchToWindow(idsAgain[0]);
         // Don't catch.
       }
 
@@ -1004,7 +988,7 @@ export class TyE2eTestBrowser {
     scrollToBottom() {
       //this.#br.scroll('body', 0, 999*1000);
       //this.#br.scroll('html', 0, 999*1000);
-      //if (this.#br.isVisible('#esPageColumn')) {
+      //if (this.isVisible('#esPageColumn')) {
       //  this.#br.execute(function() {
       //    document.getElementById('esPageColumn').scrollTop = 999*1000;
       //  });
@@ -1069,11 +1053,18 @@ export class TyE2eTestBrowser {
     count(selector: string): number { return this.$$(selector).length }
 
 
+    isExisting(selector: string): boolean { return this.$(selector).isExisting() }
+
+    isEnabled(selector: string): boolean { return this.$(selector).isEnabled() }
+
     isVisible(selector: string): boolean { return this.$(selector).isDisplayed() }
 
 
-    waitForVisible(selector: string, ps: { timeoutMs?: number } = {}) {
-                                              //  options?: WebdriverIO.WaitForOptions) {
+    waitForDisplayed(selector: string, ps: { timeoutMs?: number } = {}) {
+      this.waitForVisible(selector, ps);
+    }
+
+    waitForVisible(selector: string, ps: { timeoutMs?: number } = {}) {  // RENAME to waitForDisplayed() above
       this.waitUntil(() => {
         const elem = this.$(selector);
         if (elem && elem.isExisting() && elem.isDisplayed())
@@ -1092,11 +1083,11 @@ export class TyE2eTestBrowser {
         this.#br.pause(PollMs);
       }
       /*
-      // API is: this.#br.waitForVisible(selector[,ms][,reverse])
-      logMessage(`this.#br.waitForVisible('${selector}', timeoutMillis || true, timeoutMillis ? true : undefined);`);
+      // API is: this.waitForDisplayed(selector[,ms][,reverse])
+      logMessage(`this.waitForDisplayed('${selector}', timeoutMillis || true, timeoutMillis ? true : undefined);`);
       logWarning(`BUG just waits forever [2ABKRP83]`);
       assert(false);
-      this.#br.waitForVisible(selector, timeoutMillis || true, timeoutMillis ? true : undefined);
+      this.waitForDisplayed(selector, timeoutMillis || true, timeoutMillis ? true : undefined);
       */
     }
 
@@ -1165,7 +1156,7 @@ export class TyE2eTestBrowser {
       // and we need click a #rawdata-tab to get a <pre> with json text to copy.
       return utils.tryManyTimes("copy json", 3, () => {
         this.waitForVisible('#rawdata-tab, pre');
-        if (this.#br.isVisible('#rawdata-tab')) {
+        if (this.isVisible('#rawdata-tab')) {
           this.waitAndClick('#rawdata-tab');
         }
         const jsonStr: string = this.waitAndGetText('pre');
@@ -1240,7 +1231,7 @@ export class TyE2eTestBrowser {
     waitAndClickNth(selector: string, n: number) {   // BUG will only scroll the 1st elem into view [05YKTDTH4]
       dieIf(n <= 0, "n starts on 1, change from 0 to 1 please");
       logWarningIf(n !== 1,
-          `n = ${n} !== 1, won't scroll into view before trying to click:  ${selector} [05YKTDTH4]`);
+          `n = ${n} !== 1, won't scroll into view before trying to click, maybe will miss:  ${selector} [05YKTDTH4]`);
 
       this._waitForClickable(selector);
       const elems = this.$$(selector);
@@ -1290,7 +1281,7 @@ export class TyE2eTestBrowser {
         this.waitForMyDataAdded();
         this.#br.pause(delay);
         //logMessage(`waitAndClickLinkToNewPage ${selector} testing:`);
-        if (this.#br.isVisible(selector) && this.#br.isEnabled(selector)) {
+        if (this.isVisible(selector) && this.isEnabled(selector)) {
           //logMessage(`waitAndClickLinkToNewPage ${selector} —> FOUND and ENABLED`);
           // count += 1;
           // if (count >= 6)
@@ -1353,7 +1344,7 @@ export class TyE2eTestBrowser {
 
     refreshUntilGone(what) {
       while (true) {
-        let resultsByBrowser = this.#br.isVisible(what);
+        let resultsByBrowser = this.isVisible(what);
         let isVisibleValues = allBrowserValues(resultsByBrowser);
         let goneEverywhere = !_.some(isVisibleValues);
         if (goneEverywhere) break;
@@ -1377,13 +1368,13 @@ export class TyE2eTestBrowser {
 
     isLoadingOverlayVisible_raceCond (): boolean {
       // A race: It might disappear at any time. (309362485)
-      return this.#br.isVisible(this.__theLoadingOveraySelector);
+      return this.isVisible(this.__theLoadingOveraySelector);
     }
 
     waitUntilModalGone() {
       this.#br.waitUntil(() => {
         // Check for the modal backdrop (it makes the stuff not in the dialog darker).
-        let resultsByBrowser = this.#br.isVisible('.modal-backdrop');
+        let resultsByBrowser = this.isVisible('.modal-backdrop');
         let values = allBrowserValues(resultsByBrowser);
         let anyVisible = _.some(values, x => x);
         if (anyVisible)
@@ -1393,7 +1384,7 @@ export class TyE2eTestBrowser {
         // I suppose in one this.#br, the modal is present, but in another, it's gone... somehow
         // resulting in Selenium failing with a """ERROR: stale element reference: element
         // is not attached to the page document""" error.
-        resultsByBrowser = this.#br.isVisible('.fade.modal');
+        resultsByBrowser = this.isVisible('.fade.modal');
         values = allBrowserValues(resultsByBrowser);
         anyVisible = _.some(values, x => x);
         return !anyVisible;
@@ -1658,7 +1649,7 @@ export class TyE2eTestBrowser {
       this.waitForExist(selector);
 
       for (let i = 0; true; ++i) {
-        const html = this.#br.getHTML(selector);
+        const html = this.$(selector).getHTML();
         const anyMiss = this._findHtmlMatchMiss(html, true, regexOrStr);
         if (!anyMiss)
           break;
@@ -1761,7 +1752,7 @@ export class TyE2eTestBrowser {
 
     getText(selector: string): string {  // RENAME to waitAndGetText
                                               // and thereafter, die(...) in this.getText().
-      return this.waitAndGetText.apply(this.#br, arguments);
+      return this.waitAndGetText(selector);
     }
 
 
@@ -1891,7 +1882,7 @@ export class TyE2eTestBrowser {
       // Log a friendly error, if the selector is absent — that'd be a test suite bug.
       // Without this assert...isVisible, Webdriver just prints "Error" and one won't know
       // what the problem is.
-      assert(this.#br.isVisible(selector), `Selector '${selector}' not visible, cannot match text [EdE1WBPGY93]`);  // this could be the very-slow-thing (24DKR0) COULD_OPTIMIZE
+      assert(this.isVisible(selector), `Selector '${selector}' not visible, cannot match text [EdE1WBPGY93]`);  // this could be the very-slow-thing (24DKR0) COULD_OPTIMIZE
       const textByBrowserName = byBrowser(this.#br.getText(selector));  // SLOW !!
       _.forOwn(textByBrowserName, function(text, browserName) {
         const whichBrowser = isTheOnly(browserName) ? '' : ", this.#br: " + browserName;
@@ -2295,7 +2286,7 @@ export class TyE2eTestBrowser {
 
     topbar = {
       isVisible: (): boolean => {
-        return this.#br.isVisible('.esTopbar');
+        return this.isVisible('.esTopbar');
       },
 
       waitForVisible: () => {  // old name? use waitForMyMenuVisible instead only?
@@ -2313,7 +2304,7 @@ export class TyE2eTestBrowser {
       },
 
       clickHome: () => {
-        if (this.#br.isVisible('.esLegal_home_link')) {
+        if (this.isVisible('.esLegal_home_link')) {
           this.rememberCurrentUrl();
           this.waitAndClick('.esLegal_home_link');
           this.waitForNewUrl();
@@ -2333,7 +2324,7 @@ export class TyE2eTestBrowser {
       // COULD FASTER_E2E_TESTS can set  wait:false at most places
       assertMyUsernameMatches: (username: string, ps: { wait?: boolean } = {}) => {
         if (ps.wait !== false) {
-          this.#br.waitForVisible('.esMyMenu .esAvtrName_name');
+          this.waitForDisplayed('.esMyMenu .esAvtrName_name');
         }
         this.assertTextMatches('.esMyMenu .esAvtrName_name', username);
       },
@@ -2349,11 +2340,11 @@ export class TyE2eTestBrowser {
       },
 
       isNeedsReviewUrgentVisible: () => {
-        return this.#br.isVisible('.esNotfIcon-reviewUrgent');
+        return this.isVisible('.esNotfIcon-reviewUrgent');
       },
 
       isNeedsReviewOtherVisible: () => {
-        return this.#br.isVisible('.esNotfIcon-reviewOther');
+        return this.isVisible('.esNotfIcon-reviewOther');
       },
 
       getMyUsername: () => {
@@ -2400,7 +2391,7 @@ export class TyE2eTestBrowser {
       },
 
       closeMyMenuIfOpen: () => {
-        if (this.#br.isVisible('.s_MM .esDropModal_CloseB')) {
+        if (this.isVisible('.s_MM .esDropModal_CloseB')) {
           this.waitAndClick('.s_MM .esDropModal_CloseB');
           this.waitForGone('.s_MM .esDropModal_CloseB');
         }
@@ -2456,7 +2447,7 @@ export class TyE2eTestBrowser {
       },
 
       assertNotfToMe: () => {
-        assert(this.#br.isVisible('.esTopbar .esNotfIcon-toMe'));
+        assert(this.isVisible('.esTopbar .esNotfIcon-toMe'));
       },
 
       notfsToMeClass: '.esTopbar .esNotfIcon-toMe',
@@ -2482,7 +2473,7 @@ export class TyE2eTestBrowser {
         while (true) {
           let isWhat;
           if (desiredNumNotfs === 0) {
-            if (!this.#br.isVisible(this.topbar.otherNotfsClass)) {
+            if (!this.isVisible(this.topbar.otherNotfsClass)) {
               break;
             }
             isWhat = '>= 1';
@@ -2575,7 +2566,7 @@ export class TyE2eTestBrowser {
         isMarkAllNotfsReadVisibleOpenClose: (): boolean => {
           this.topbar.openMyMenu();
           this.waitForVisible('.s_MM_NotfsBs');  // (test code bug: sometimes absent — if 0 notfs)
-          const isVisible = this.#br.isVisible(this.topbar.myMenu.dismNotfsBtnClass);
+          const isVisible = this.isVisible(this.topbar.myMenu.dismNotfsBtnClass);
           this.topbar.closeMyMenuIfOpen();
           return isVisible;
         },
@@ -2610,7 +2601,7 @@ export class TyE2eTestBrowser {
       },
 
       openIfNeeded: () => {
-        if (!this.#br.isVisible('#esWatchbarColumn')) {
+        if (!this.isVisible('#esWatchbarColumn')) {
           this.watchbar.open();
         }
       },
@@ -2641,7 +2632,7 @@ export class TyE2eTestBrowser {
         this.assertExactly(num, this.watchbar.titleSelector);
       },
 
-      numUnreadTopics: (num: number): number => {
+      numUnreadTopics: (): number => {
         return this.count('.esWB_T-Unread');
       },
 
@@ -2732,7 +2723,7 @@ export class TyE2eTestBrowser {
           // Give the page enough time to load:
           lap += 1;
           this.#br.pause(200 * Math.pow(1.5, lap));
-          dialogShown = this.#br.isVisible('.dw-login-modal') && this.#br.isVisible('.esLD');
+          dialogShown = this.isVisible('.dw-login-modal') && this.isVisible('.esLD');
           if (dialogShown)
             break;
         }
@@ -2744,17 +2735,17 @@ export class TyE2eTestBrowser {
         this.waitForVisible('.dw-login-modal');
         this.waitForVisible('.esLD');
         // Forum not shown.
-        assert(!this.#br.isVisible('.dw-forum'));
-        assert(!this.#br.isVisible('.dw-forum-actionbar'));
+        assert(!this.isVisible('.dw-forum'));
+        assert(!this.isVisible('.dw-forum-actionbar'));
         // No forum topic shown.
-        assert(!this.#br.isVisible('h1'));
-        assert(!this.#br.isVisible('.dw-p'));
-        assert(!this.#br.isVisible('.dw-p-ttl'));
+        assert(!this.isVisible('h1'));
+        assert(!this.isVisible('.dw-p'));
+        assert(!this.isVisible('.dw-p-ttl'));
         // Admin area not shown.
-        assert(!this.#br.isVisible('.esTopbar_custom_backToSite'));
-        assert(!this.#br.isVisible('#dw-react-admin-app'));
+        assert(!this.isVisible('.esTopbar_custom_backToSite'));
+        assert(!this.isVisible('#dw-react-admin-app'));
         // User profile not shown.
-        assert(!this.#br.isVisible(this.userProfilePage.avatarAboutButtonsSelector));
+        assert(!this.isVisible(this.userProfilePage.avatarAboutButtonsSelector));
       },
 
       clickSingleSignOnButton: () => {
@@ -2762,7 +2753,7 @@ export class TyE2eTestBrowser {
       },
 
       waitForSingleSignOnButton: () => {
-        this.#br.waitForVisible('.s_LD_SsoB');
+        this.waitForDisplayed('.s_LD_SsoB');
       },
 
       createPasswordAccount: (data: MemberToCreate | {
@@ -2780,7 +2771,7 @@ export class TyE2eTestBrowser {
 
         // Switch from the guest login form to the create-real-account form, if needed.
         this.waitForVisible('#e2eFullName');
-        if (this.#br.isVisible('.s_LD_CreateAccount')) {
+        if (this.isVisible('.s_LD_CreateAccount')) {
           this.waitAndClick('.s_LD_CreateAccount');
           this.waitForVisible('#e2ePassword');
         }
@@ -2978,11 +2969,11 @@ export class TyE2eTestBrowser {
       switchToLoginIfIsSignup: () => {
         // Switch to login form, if we're currently showing the signup form.
         while (true) {
-          if (this.#br.isVisible('.esCreateUser')) {
+          if (this.isVisible('.esCreateUser')) {
             this.waitAndClick('.esLD_Switch_L');
             // Don't waitForVisible('.dw-reset-pswd') — that can hang forever (weird?).
           }
-          else if (this.#br.isVisible('.dw-reset-pswd')) {
+          else if (this.isVisible('.dw-reset-pswd')) {
             // Then the login form is shown, fine.
             break;
           }
@@ -3053,7 +3044,7 @@ export class TyE2eTestBrowser {
         // the Gmail login widgets to load, or for us to be back in Talkyard again.
         while (true) {
           if (ps.isInFullScreenLogin) {
-            if (this.#br.isExisting('.dw-login-modal')) {
+            if (this.isExisting('.dw-login-modal')) {
               // We're back in Talkyard.
               return;
             }
@@ -3064,7 +3055,7 @@ export class TyE2eTestBrowser {
             return;
           }
           try {
-            if (this.#br.isExisting(emailInputSelector)) {
+            if (this.isExisting(emailInputSelector)) {
               // That's a Gmail login widget. Continue with Gmail login.
               break;
             }
@@ -3081,7 +3072,7 @@ export class TyE2eTestBrowser {
         this.waitAndSetValue(emailInputSelector, data.email, { checkAndRetry: true });
 
         this.#br.pause(500);
-        if (this.#br.isExisting(emailNext)) {
+        if (this.isExisting(emailNext)) {
           logMessage(`clicking ${emailNext}...`);
           this.waitAndClick(emailNext);
         }
@@ -3091,7 +3082,7 @@ export class TyE2eTestBrowser {
         this.waitAndSetValue(passwordInputSelector, data.password, { checkAndRetry: true });
 
         this.#br.pause(500);
-        if (this.#br.isExisting(passwordNext)) {
+        if (this.isExisting(passwordNext)) {
           logMessage(`clicking ${passwordNext}...`);
           this.waitAndClick(passwordNext);
         }
@@ -3139,7 +3130,7 @@ export class TyE2eTestBrowser {
         logMessage("Switching to GitHub login window...");
         this.swithToOtherTabOrWindow(IsWhere.External);
 
-        this.#br.waitForVisible('.auth-form-body');
+        this.waitForDisplayed('.auth-form-body');
         this.waitAndSetValue('.auth-form-body #login_field', ps.username);
         this.#br.pause(340); // so less risk GitHub think this is a computer?
         this.waitAndSetValue('.auth-form-body #password', ps.password);
@@ -3148,7 +3139,7 @@ export class TyE2eTestBrowser {
         while (true) {
           this.#br.pause(200);
           try {
-            if (this.#br.isVisible('#js-oauth-authorize-btn')) {
+            if (this.isVisible('#js-oauth-authorize-btn')) {
               logMessage("Authorizing Talkyard to handle this GitHub login ... [TyT4ABKR02F]");
               this.waitAndClick('#js-oauth-authorize-btn');
               break;
@@ -3202,7 +3193,7 @@ export class TyE2eTestBrowser {
             return;
           }
           try {
-            if (this.#br.isExisting('#email'))
+            if (this.isExisting('#email'))
               break;
           }
           catch (dummy) {
@@ -3275,7 +3266,7 @@ export class TyE2eTestBrowser {
             return;
           }
           try {
-            if (this.#br.isExisting('input#username'))
+            if (this.isExisting('input#username'))
               break;
           }
           catch (dummy) {
@@ -3298,7 +3289,7 @@ export class TyE2eTestBrowser {
         // If needed, confirm permissions: click an Allow button.
         try {
           for (let i = 0; i < 10; ++i) {
-            if (this.#br.isVisible('#oauth__auth-form__submit-btn')) {
+            if (this.isVisible('#oauth__auth-form__submit-btn')) {
               this.waitAndClick('#oauth__auth-form__submit-btn');
             }
             else {
@@ -3324,8 +3315,8 @@ export class TyE2eTestBrowser {
       loginPopupClosedBecauseAlreadyLoggedIn: () => {
         try {
           logMessage("checking if we got logged in instantly... [EdM2PG44Y0]");
-          const yes = this.#br.getTabIds().length === 1;// ||  // login tab was auto closed
-              //this.#br.isExisting('.e_AlreadyLoggedIn');    // server shows logged-in-already page
+          const yes = this.numWindowsOpen() === 1;// ||  // login tab was auto closed
+              //this.isExisting('.e_AlreadyLoggedIn');    // server shows logged-in-already page
               //  ^--- sometimes blocks forever, how is that possible?
           logMessage(yes ? "yes seems so" : "no don't think so");
           return yes;
@@ -3365,8 +3356,8 @@ export class TyE2eTestBrowser {
       acceptTerms: (isForSiteOwner?: boolean) => {
         this.waitForVisible('#e_TermsL');
         this.waitForVisible('#e_PrivacyL');
-        const termsLinkHtml = this.#br.getHTML('#e_TermsL');
-        const privacyLinkHtml = this.#br.getHTML('#e_PrivacyL');
+        const termsLinkHtml = this.$('#e_TermsL').getHTML();
+        const privacyLinkHtml = this.$('#e_PrivacyL').getHTML();
         if (isForSiteOwner) {
           // In dev-test, the below dummy urls are defined [5ADS24], but not in prod.
           if (!settings.prod) {
@@ -3418,7 +3409,7 @@ export class TyE2eTestBrowser {
         if (!opts.oldPassword) {
           // There's a <span> with the below class, just to show this test that there's
           // no type-old-password input field.
-          assert(this.#br.isExisting('.e_NoOldPwI'));
+          assert(this.isExisting('.e_NoOldPwI'));
         }
         this.chooseNewPasswordPage.submit();
         this.chooseNewPasswordPage.waitUntilPasswordChanged();
@@ -3478,12 +3469,12 @@ export class TyE2eTestBrowser {
       // Also see this.assertWholePageHidden().
       assertPageHidden: () => {
         this.pageTitle.waitForVisible();
-        assert(this.#br.isVisible('.dw-p-ttl .icon-eye-off'));
+        assert(this.isVisible('.dw-p-ttl .icon-eye-off'));
       },
 
       assertPageNotHidden: () => {
         this.pageTitle.waitForVisible();
-        assert(!this.#br.isVisible('.dw-p-ttl .icon-eye-off'));
+        assert(!this.isVisible('.dw-p-ttl .icon-eye-off'));
       },
 
       __changePageButtonSelector: '.dw-p-ttl .dw-clickable',
@@ -3494,7 +3485,7 @@ export class TyE2eTestBrowser {
       },
 
       canBumpPageStatus: (): boolean => {
-        return this.#br.isVisible(this.pageTitle.__changePageButtonSelector);
+        return this.isVisible(this.pageTitle.__changePageButtonSelector);
       },
     }
 
@@ -3546,7 +3537,7 @@ export class TyE2eTestBrowser {
       assertNoCreateTopicButton: () => {
         // Wait until the button bar has loaded.
         this.waitForVisible('#e_ViewCatsB');
-        assert(!this.#br.isVisible('#e2eCreateSth'));
+        assert(!this.isVisible('#e2eCreateSth'));
       },
 
       listDeletedTopics: () => {
@@ -3789,7 +3780,7 @@ export class TyE2eTestBrowser {
       },
 
       securityTab: {
-        switchGroupFromTo(fromGroupName: string, toGroupName: string) {
+        switchGroupFromTo: (fromGroupName: string, toGroupName: string) => {
           this.waitAndClickSelectorWithText('.s_PoP_Un button', fromGroupName);
           this.waitAndClickSelectorWithText('.esDropModal_content .esExplDrp_entry', toGroupName);
         },
@@ -3962,8 +3953,8 @@ export class TyE2eTestBrowser {
       },
 
       isTitleVisible: () => {
-        this.#br.waitForVisible('.editor-area');
-        return this.#br.isVisible('.editor-area .esEdtr_titleEtc_title');
+        this.waitForDisplayed('.editor-area');
+        return this.isVisible('.editor-area .esEdtr_titleEtc_title');
       },
 
       getTitle: (): string => {
@@ -4028,7 +4019,7 @@ export class TyE2eTestBrowser {
       },
 
       closeIfOpen: () => {
-        if (this.#br.isVisible('#debiki-editor-controller .e_EdCancelB')) {
+        if (this.isVisible('#debiki-editor-controller .e_EdCancelB')) {
           this.editor.cancel();
         }
       },
@@ -4055,7 +4046,7 @@ export class TyE2eTestBrowser {
       },
 
       isDraftJustSaved: () => {
-        this.#br.isVisible('.e_DfSts-' + c.TestDraftStatus.Saved);
+        this.isVisible('.e_DfSts-' + c.TestDraftStatus.Saved);
       },
 
       waitForDraftSaved: () => {
@@ -4112,7 +4103,7 @@ export class TyE2eTestBrowser {
 
     metabar = {
       isVisible: (): boolean => {
-        return this.#br.isVisible('.dw-cmts-tlbr-summary');
+        return this.isVisible('.dw-cmts-tlbr-summary');
       },
 
       clickLogin: () => {
@@ -4154,7 +4145,7 @@ export class TyE2eTestBrowser {
       },
 
       openMetabarIfNeeded: () => {
-        if (!this.#br.isVisible('.esMB_Dtls_Ntfs_Lbl')) {
+        if (!this.isVisible('.esMB_Dtls_Ntfs_Lbl')) {
           this.metabar.openMetabar();
         }
       },
@@ -4229,13 +4220,13 @@ export class TyE2eTestBrowser {
 
       isPostNrDescendantOf: (postNr, maybeParentNr) => {
         this.switchToEmbCommentsIframeIfNeeded();
-        return this.#br.isVisible(
+        return this.isVisible(
             `#post-${maybeParentNr} + .dw-p-as + .dw-single-and-multireplies #post-${postNr}`);
       },
 
       isPostNrVisible: (postNr) => {
         this.switchToEmbCommentsIframeIfNeeded();
-        return this.#br.isVisible('#post-' + postNr);
+        return this.isVisible('#post-' + postNr);
       },
 
       waitForPostNrVisible: (postNr) => {  // RENAME to ...VisibleText?
@@ -4260,7 +4251,7 @@ export class TyE2eTestBrowser {
 
       assertPostHtmlDoesNotMatch: (postNr, regexOrString: string | RegExp | any[]) => {
         const selector = this.topic.postBodySelector(postNr);
-        const html = this.#br.getHTML(selector);
+        const html = this.$(selector).getHTML();
         const badMatch = this._findHtmlMatchMiss(html, false, regexOrString);
         if (badMatch) {
           assert(false,
@@ -4306,11 +4297,11 @@ export class TyE2eTestBrowser {
       },
 
       postNrContains: (postNr: PostNr, selector: string) => {
-        return this.#br.isExisting(this.topic.postBodySelector(postNr) + ' ' + selector);
+        return this.isExisting(this.topic.postBodySelector(postNr) + ' ' + selector);
       },
 
       postNrContainsVisible: (postNr: PostNr, selector: string) => {
-        return this.#br.isVisible(this.topic.postBodySelector(postNr) + ' ' + selector);
+        return this.isVisible(this.topic.postBodySelector(postNr) + ' ' + selector);
       },
 
       assertPostTextMatches: (postNr: PostNr, text: string | RegExp) => {
@@ -4333,7 +4324,7 @@ export class TyE2eTestBrowser {
       refreshUntilAppears: (selector: string, ps: { isEmbedded?: true } = {}) => {
         // Maybe use this.waitUntil()? But it's ok to call it from inside itself?
         let delayMs = RefreshPollMs;
-        while (!this.#br.isVisible(selector)) {
+        while (!this.isVisible(selector)) {
           logMessage(`Refreshing page until appears:  ${selector}  [TyE2EMREFRWAIT]`);
           this.#br.refresh();
           // Pause *after* the refresh, so there's some time for the post to get loaded & appear.
@@ -4370,12 +4361,12 @@ export class TyE2eTestBrowser {
 
       waitForReplyButtonAssertCommentsVisible: () => {
         this.waitForVisible(this.topic.anyReplyButtonSelector);
-        assert(this.#br.isVisible(this.topic.anyCommentSelector));
+        assert(this.isVisible(this.topic.anyCommentSelector));
       },
 
       waitForReplyButtonAssertNoComments: () => {
         this.waitForVisible(this.topic.anyReplyButtonSelector);
-        assert(!this.#br.isVisible(this.topic.anyCommentSelector));
+        assert(!this.isVisible(this.topic.anyCommentSelector));
       },
 
       countReplies: (ps: { skipWait?: boolean } = {}): NumReplies => {
@@ -4419,7 +4410,7 @@ export class TyE2eTestBrowser {
       },
 
       clickFirstMentionOf: (username: string) => {
-        this.#br.waitForVisible(`a.esMention=@${username}`);
+        this.waitForDisplayed(`a.esMention=@${username}`);
         const elem = this.$(`a.esMention=@${username}`);
         elem.click();
       },
@@ -4444,18 +4435,18 @@ export class TyE2eTestBrowser {
         this.topic.clickPostActionButton(this.topic.addProgressReplySelector);
         // Dismiss any help dialog that explains what bottom comments are.
         this.#br.pause(150);
-        if (this.#br.isVisible('.e_HelpOk')) {
+        if (this.isVisible('.e_HelpOk')) {
           this.waitAndClick('.e_HelpOk');
           this.waitUntilModalGone();
         }
       },
 
       canEditSomething: (): boolean => {
-        return this.#br.isVisible('.dw-a-edit');
+        return this.isVisible('.dw-a-edit');
       },
 
       canReplyToSomething: (): boolean => {
-        return this.#br.isVisible('.dw-a-reply');
+        return this.isVisible('.dw-a-reply');
       },
 
       canEditOrigPost: (): boolean => {
@@ -4464,7 +4455,7 @@ export class TyE2eTestBrowser {
 
       canEditPostNr: (postNr: number): boolean => {
         const selector = `#post-${postNr} + .esPA .dw-a-edit`;
-        return this.#br.isVisible(selector) && this.#br.isEnabled(selector);
+        return this.isVisible(selector) && this.isEnabled(selector);
       },
 
       clickEditOrigPost: () => {
@@ -4480,7 +4471,7 @@ export class TyE2eTestBrowser {
       },
 
       isViewEditsButtonVisible: (postNr: PostNr): boolean => {
-        return this.#br.isVisible(`#post-${postNr} .esP_viewHist`);
+        return this.isVisible(`#post-${postNr} .esP_viewHist`);
       },
 
       openEditHistory: (postNr: PostNr) => {
@@ -4514,7 +4505,7 @@ export class TyE2eTestBrowser {
         // This always works, when the tests are visible and I look at them.
         // But can block forever, in an invisible this.#br. Just repeat until works.
         utils.tryManyTimes("Open move post dialog", 3, () => {
-          if (!this.#br.isVisible('.s_PA_MvB')) {
+          if (!this.isVisible('.s_PA_MvB')) {
             this.topic.clickMoreForPostNr(postNr);
           }
           this.waitAndClick('.s_PA_MvB', { timeoutMs: 500 });
@@ -4545,8 +4536,7 @@ export class TyE2eTestBrowser {
             return true;
           // A login popup should open.
           this.#br.pause(200);
-          const ids = this.#br.getTabIds();
-          return ids.length >= 2;
+          return this.numWindowsOpen() >= 2;
         });
 
         if (opts.logInAs) {
@@ -4564,7 +4554,7 @@ export class TyE2eTestBrowser {
       toggleLikeVote: (postNr: PostNr, opts: { logInAs? } = {}) => {
         const likeVoteSelector = this.topic.makeLikeVoteSelector(postNr);
         this.switchToEmbCommentsIframeIfNeeded();
-        const isLikedBefore = this.#br.isVisible(likeVoteSelector + '.dw-my-vote');
+        const isLikedBefore = this.isVisible(likeVoteSelector + '.dw-my-vote');
         this.topic.clickLikeVote(postNr, opts);
         this.switchToEmbCommentsIframeIfNeeded();
         let delay = 133;
@@ -4572,7 +4562,7 @@ export class TyE2eTestBrowser {
           // Wait for the server to reply and the page to get updated.
           this.#br.pause(delay);
           delay *= 1.5;
-          const isLikedAfter = this.#br.isVisible(likeVoteSelector + '.dw-my-vote');
+          const isLikedAfter = this.isVisible(likeVoteSelector + '.dw-my-vote');
           if (isLikedBefore !== isLikedAfter)
             break;
         }
@@ -4584,7 +4574,7 @@ export class TyE2eTestBrowser {
 
       isPostLiked: (postNr: PostNr, ps: { byMe?: true } = {}) => {
         const likeVoteSelector = this.topic.makeLikeVoteSelector(postNr, ps);
-        return this.#br.isVisible(likeVoteSelector);
+        return this.isVisible(likeVoteSelector);
       },
 
       waitForLikeVote: (postNr: PostNr, ps: { byMe?: true } = {}) => {
@@ -4614,13 +4604,13 @@ export class TyE2eTestBrowser {
 
       canVoteLike: (postNr: PostNr): boolean => {
         const likeVoteSelector = this.topic.makeLikeVoteSelector(postNr);
-        return this.#br.isVisible(likeVoteSelector);
+        return this.isVisible(likeVoteSelector);
       },
 
       canVoteUnwanted: (postNr: PostNr): boolean => {
         this.topic.clickMoreVotesForPostNr(postNr);
         this.waitForVisible('.esDropModal_content .dw-a-like');
-        const canVote = this.#br.isVisible('.esDropModal_content .dw-a-unwanted');
+        const canVote = this.isVisible('.esDropModal_content .dw-a-unwanted');
         assert(false); // how close modal? to do... later when needed
         return canVote;
       },
@@ -4653,17 +4643,17 @@ export class TyE2eTestBrowser {
       },
 
       canSelectAnswer: (): boolean => {
-        return this.#br.isVisible('.dw-a-solve');
+        return this.isVisible('.dw-a-solve');
       },
 
       selectPostNrAsAnswer: (postNr) => {
-        assert(!this.#br.isVisible(this.topic._makeUnsolveSelector(postNr)));
+        assert(!this.isVisible(this.topic._makeUnsolveSelector(postNr)));
         this.topic.clickPostActionButton(this.topic._makeSolveSelector(postNr));
         this.waitForVisible(this.topic._makeUnsolveSelector(postNr));
       },
 
       unselectPostNrAsAnswer: (postNr) => {
-        assert(!this.#br.isVisible(this.topic._makeSolveSelector(postNr)));
+        assert(!this.isVisible(this.topic._makeSolveSelector(postNr)));
         this.topic.clickPostActionButton(this.topic._makeUnsolveSelector(postNr));
         this.waitForVisible(this.topic._makeSolveSelector(postNr));
       },
@@ -4686,11 +4676,11 @@ export class TyE2eTestBrowser {
       // Could break out to  changePageDialog: { ... } obj.
       waitUntilChangePageDialogOpen: () => {
         this.waitForVisible(this.topic.__changePageDialogSelector);  // CROK
-        this.#br.waitForVisible('.modal-backdrop');
+        this.waitForDisplayed('.modal-backdrop');
       },
 
       isChangePageDialogOpen: () => {
-        return this.#br.isVisible(this.topic.__changePageDialogSelector);  // CROK
+        return this.isVisible(this.topic.__changePageDialogSelector);  // CROK
       },
 
       waitUntilChangePageDialogGone: () => {
@@ -4707,14 +4697,14 @@ export class TyE2eTestBrowser {
         while (true) {
           // This no longer works, why not? Chrome 77. The click has no effect —
           // maybe it doesn't click at 10,10 any longer? Or what?
-          //if (this.#br.isVisible('.modal-backdrop')) {
+          //if (this.isVisible('.modal-backdrop')) {
           //  // Click the upper left corner — if any dialog is open, it'd be somewhere in
           //  // the middle and the upper left corner, shouldn't hit it.
           //  this.#br.leftClick('.modal-backdrop', 10, 10);
           //}
           // Instead: (and is this even slightly better?)
           // (Break out close dialog fn?  [E2ECLOSEDLGFN])
-          if (this.#br.isVisible('.esDropModal_CloseB')) {
+          if (this.isVisible('.esDropModal_CloseB')) {
             this.waitAndClick('.esDropModal_CloseB');
           }
           if (!this.topic.isChangePageDialogOpen())
@@ -4739,13 +4729,13 @@ export class TyE2eTestBrowser {
       },
 
       canCloseOrReopen: (): boolean => {
-        this.#br.waitForVisible('.dw-a-more'); // so all buttons have appeared
-        if (!this.#br.isVisible('.dw-a-change'))
+        this.waitForDisplayed('.dw-a-more'); // so all buttons have appeared
+        if (!this.isVisible('.dw-a-change'))
           return false;
         this.topic.openChangePageDialog();
         let result = false;
-        if (this.#br.isVisible(this.topic._closeButtonSelector)) result = true;
-        else if (this.#br.isVisible(this.topic._reopenButtonSelector)) result = true;
+        if (this.isVisible(this.topic._closeButtonSelector)) result = true;
+        else if (this.isVisible(this.topic._reopenButtonSelector)) result = true;
         this.topic.closeChangePageDialog();
         return result;
       },
@@ -4770,7 +4760,7 @@ export class TyE2eTestBrowser {
 
       refreshUntilPostPresentBodyNotHidden: (postNr: PostNr) => {
         while (true) {
-          let isVisible = this.#br.isVisible(`#post-${postNr}`);
+          let isVisible = this.isVisible(`#post-${postNr}`);
           let isBodyHidden = this.topic.isPostBodyHidden(postNr);
           if (isVisible && !isBodyHidden) break;
           this.#br.pause(RefreshPollMs);
@@ -4779,11 +4769,11 @@ export class TyE2eTestBrowser {
       },
 
       isPostBodyHidden: (postNr) => {
-        return this.#br.isVisible(`#post-${postNr}.s_P-Hdn`);
+        return this.isVisible(`#post-${postNr}.s_P-Hdn`);
       },
 
       waitForPostVisibleAsDeleted: (postNr: PostNr) => {
-        this.#br.waitForVisible(`#post-${postNr}.s_P-Dd`);
+        this.waitForDisplayed(`#post-${postNr}.s_P-Dd`);
       },
 
       assertPostHidden: (postNr: PostNr) => {
@@ -4791,12 +4781,12 @@ export class TyE2eTestBrowser {
       },
 
       assertPostNotHidden: (postNr: PostNr) => {
-        assert(!this.#br.isVisible(`#post-${postNr}.s_P-Hdn`));
-        assert(this.#br.isVisible(`#post-${postNr}`));
+        assert(!this.isVisible(`#post-${postNr}.s_P-Hdn`));
+        assert(this.isVisible(`#post-${postNr}`));
         // Check -Hdn again, to prevent some races (but not all), namely that the post gets
         // loaded, and is invisible, but the first -Hdn check didn't find it because at that time
         // it hadn't yet been loaded.
-        assert(!this.#br.isVisible(`#post-${postNr}.s_P-Hdn`));
+        assert(!this.isVisible(`#post-${postNr}.s_P-Hdn`));
       },
 
       assertPostNeedsApprovalBodyVisible: (postNr: PostNr) => {
@@ -4850,7 +4840,7 @@ export class TyE2eTestBrowser {
         // If so, scroll down to the reply button.
         //
         // Why try twice? The scroll buttons aren't shown until a few 100 ms after page load.
-        // So, `this.#br.isVisible(this.scrollButtons.fixedBarSelector)` might evaluate to false,
+        // So, `this.isVisible(this.scrollButtons.fixedBarSelector)` might evaluate to false,
         // and then we won't scroll down — but then just before `this.waitAndClick`
         // they appear, so the click fails. That's why we try once more.
         //
@@ -4878,7 +4868,7 @@ export class TyE2eTestBrowser {
             /*
             // ? Why did I add this can-scroll test ? Maybe, if can *not* scroll, this loop never got
             // happy with the current scroll position (0, 0?) and continued trying-to-scroll forever?
-            let hasScrollBtns = this.#br.isVisible(this.scrollButtons.fixedBarSelector);
+            let hasScrollBtns = this.isVisible(this.scrollButtons.fixedBarSelector);
             // If in admin area or user's profile, there're no scroll buttons, but can maybe
             // scroll anyway.
             const canScroll = hasScrollBtns || isOnAutoPage;
@@ -4951,23 +4941,23 @@ export class TyE2eTestBrowser {
       },
 
       _isTitlePendingApprovalVisible: () => {
-        return this.#br.isVisible('.dw-p-ttl .esPendingApproval');
+        return this.isVisible('.dw-p-ttl .esPendingApproval');
       },
 
       _isOrigPostPendingApprovalVisible: () => {
-        return this.#br.isVisible('.dw-ar-t > .esPendingApproval');
+        return this.isVisible('.dw-ar-t > .esPendingApproval');
       },
 
       _isBodyVisible: (postNr: PostNr) => {
-        return this.#br.isVisible(`#post-${postNr} .dw-p-bd`);
+        return this.isVisible(`#post-${postNr} .dw-p-bd`);
       },
 
       _hasPendingModClass: (postNr: PostNr) => {
-        return this.#br.isVisible(`#post-${postNr} .dw-p-pending-mod`);
+        return this.isVisible(`#post-${postNr} .dw-p-pending-mod`);
       },
 
       _hasUnapprovedClass: (postNr: PostNr) => {
-        return this.#br.isVisible(`#post-${postNr}.dw-p-unapproved`);
+        return this.isVisible(`#post-${postNr}.dw-p-unapproved`);
       },
     };
 
@@ -5072,7 +5062,7 @@ export class TyE2eTestBrowser {
 
       assertPhraseNotFound: (phrase: string) => {
         this.searchResultsPage.waitForResults(phrase);
-        assert(this.#br.isVisible('#e_SP_NothingFound'));
+        assert(this.isVisible('#e_SP_NothingFound'));
       },
 
       waitForAssertNumPagesFound: (phrase: string, numPages: number) => {
@@ -5198,7 +5188,7 @@ export class TyE2eTestBrowser {
       },
 
       waitUntilDeletedOrDeactivated: () => {
-        this.#br.waitForVisible('.e_ActDd');
+        this.waitForDisplayed('.e_ActDd');
       },
 
       navBackToGroups: () => {
@@ -5279,22 +5269,22 @@ export class TyE2eTestBrowser {
 
       isInvitesTabVisible: () => {
         this.userProfilePage.waitForTabsVisible();
-        return this.#br.isVisible('.e_InvTabB');
+        return this.isVisible('.e_InvTabB');
       },
 
       isNotfsTabVisible: () => {
         this.userProfilePage.waitForTabsVisible();
-        return this.#br.isVisible('.e_UP_NotfsB');
+        return this.isVisible('.e_UP_NotfsB');
       },
 
       isPrefsTabVisible: () => {
         this.userProfilePage.waitForTabsVisible();
-        return this.#br.isVisible('#e2eUP_PrefsB');
+        return this.isVisible('#e2eUP_PrefsB');
       },
 
       assertIsMyProfile: () => {
         this.waitForVisible('.esUP_Un');
-        assert(this.#br.isVisible('.esProfile_isYou'));
+        assert(this.isVisible('.esProfile_isYou'));
       },
 
       assertUsernameIs: (username: string) => {
@@ -5487,7 +5477,7 @@ export class TyE2eTestBrowser {
 
         waitUntilNumDraftsListed: (numDrafts: number) => {
           if (numDrafts === 0) {
-            this.#br.waitForVisible('.e_Dfs_None');
+            this.waitForDisplayed('.e_Dfs_None');
           }
           else {
             this.waitForAtLeast(numDrafts, '.s_Dfs_Df');
@@ -5603,7 +5593,7 @@ export class TyE2eTestBrowser {
           },
 
           savePrivacySettings: () => {
-            dieIf(this.#br.isVisible('.e_Saved'), 'TyE6UKHRQP4'); // unimplemented
+            dieIf(this.isVisible('.e_Saved'), 'TyE6UKHRQP4'); // unimplemented
             this.waitAndClick('.e_SavePrivacy');
             this.waitForVisible('.e_Saved');
           },
@@ -5652,7 +5642,7 @@ export class TyE2eTestBrowser {
           canRemoveEmailAddress: (): boolean => {
             this.waitForVisible('.e_AddEmail');
             // Now any remove button should have appeared.
-            return this.#br.isVisible('.e_RemoveEmB');
+            return this.isVisible('.e_RemoveEmB');
           },
 
           removeFirstEmailAddrOutOf: (numCanRemoveTotal: number) => {
@@ -5672,7 +5662,7 @@ export class TyE2eTestBrowser {
             // Only call this function if another email has been added (then there's a Remove button).
             this.waitForVisible('.e_RemoveEmB');
             // Now the make-primary button would also have appeared, if it's here.
-            return this.#br.isVisible('.e_MakeEmPrimaryB');
+            return this.isVisible('.e_MakeEmPrimaryB');
           },
 
           makeOtherEmailPrimary: () => {
@@ -5704,7 +5694,7 @@ export class TyE2eTestBrowser {
         this.waitForVisible('.e_HasVerifiedEmail');
         this.waitForVisible('.e_ViewProfileL');
         this.waitForVisible('.e_HomepageL');
-        assert(opts.needToLogin === this.#br.isVisible('.e_NeedToLogin'));
+        assert(opts.needToLogin === this.isVisible('.e_NeedToLogin'));
       },
 
       goToHomepage: () => {
@@ -5823,11 +5813,11 @@ export class TyE2eTestBrowser {
       },
 
       isReviewTabVisible: () => {
-        return this.#br.isVisible('.e_RvwB');
+        return this.isVisible('.e_RvwB');
       },
 
       isUsersTabVisible: () => {
-        return this.#br.isVisible('.e_UsrsB');
+        return this.isVisible('.e_UsrsB');
       },
 
       numTabsVisible: () =>
@@ -6030,15 +6020,15 @@ export class TyE2eTestBrowser {
 
         assertEnabled: () => {
           this.adminArea.user.waitForLoaded();
-          assert(this.#br.isVisible(this.adminArea.user.enabledSelector));
+          assert(this.isVisible(this.adminArea.user.enabledSelector));
         },
 
         assertEmailVerified: () => {
-          assert(this.#br.isVisible(this.adminArea.user.setEmailNotVerifiedButtonSelector));
+          assert(this.isVisible(this.adminArea.user.setEmailNotVerifiedButtonSelector));
         },
 
         assertEmailNotVerified: () => {
-          assert(this.#br.isVisible(this.adminArea.user.setEmailVerifiedButtonSelector));
+          assert(this.isVisible(this.adminArea.user.setEmailVerifiedButtonSelector));
         },
 
         setEmailToVerified: (verified: boolean) => {
@@ -6056,38 +6046,38 @@ export class TyE2eTestBrowser {
 
         assertDisabledBecauseNotYetApproved: () => {
           this.adminArea.user.waitForLoaded();
-          assert(this.#br.isVisible(this.adminArea.user.disabledSelector));
-          assert(this.#br.isVisible(this.adminArea.user.disabledBecauseWaitingForApproval));
+          assert(this.isVisible(this.adminArea.user.disabledSelector));
+          assert(this.isVisible(this.adminArea.user.disabledBecauseWaitingForApproval));
           // If email not verified, wouldn't be considered waiting.
-          assert(!this.#br.isVisible(this.adminArea.user.disabledBecauseEmailUnverified));
+          assert(!this.isVisible(this.adminArea.user.disabledBecauseEmailUnverified));
         },
 
         assertDisabledBecauseEmailNotVerified: () => {
           this.adminArea.user.waitForLoaded();
-          assert(this.#br.isVisible(this.adminArea.user.disabledSelector));
-          assert(this.#br.isVisible(this.adminArea.user.disabledBecauseEmailUnverified));
+          assert(this.isVisible(this.adminArea.user.disabledSelector));
+          assert(this.isVisible(this.adminArea.user.disabledBecauseEmailUnverified));
           // Isn't considered waiting, until after email approved.
-          assert(!this.#br.isVisible(this.adminArea.user.disabledBecauseWaitingForApproval));
+          assert(!this.isVisible(this.adminArea.user.disabledBecauseWaitingForApproval));
         },
 
         assertApprovedInfoAbsent: () => {
           this.adminArea.user.waitForLoaded();
-          assert(this.#br.isExisting('.e_Appr_Info-Absent'));
+          assert(this.isExisting('.e_Appr_Info-Absent'));
         },
 
         assertApproved: () => {
           this.adminArea.user.waitForLoaded();
-          assert(this.#br.isVisible('.e_Appr_Yes'));
+          assert(this.isVisible('.e_Appr_Yes'));
         },
 
         assertRejected: () => {
           this.adminArea.user.waitForLoaded();
-          assert(this.#br.isVisible('.e_Appr_No'));
+          assert(this.isVisible('.e_Appr_No'));
         },
 
         assertWaitingForApproval: () => {   // RENAME to  assertApprovalUndecided
           this.adminArea.user.waitForLoaded();
-          assert(this.#br.isVisible('.e_Appr_Undecided'));
+          assert(this.isVisible('.e_Appr_Undecided'));
         },
 
         approveUser: () => {
@@ -6188,7 +6178,7 @@ export class TyE2eTestBrowser {
 
         assertUserListEmpty: () => {
           this.adminArea.users.waitForLoaded();
-          assert(this.#br.isVisible('.e_NoSuchUsers'));
+          assert(this.isVisible('.e_NoSuchUsers'));
         },
 
         assertUserListed: (member: { username: string }) => {
@@ -6213,10 +6203,10 @@ export class TyE2eTestBrowser {
           // later, check the relevant user row.
           // ------------
           if (verified) {
-            assert(!this.#br.isVisible('.e_EmNotVerfd'));
+            assert(!this.isVisible('.e_EmNotVerfd'));
           }
           else {
-            assert(this.#br.isVisible('.e_EmNotVerfd'));
+            assert(this.isVisible('.e_EmNotVerfd'));
           }
         },
 
@@ -6234,7 +6224,7 @@ export class TyE2eTestBrowser {
 
         isWaitingTabVisible: () => {
           this.waitForVisible(this.adminArea.users.enabledUsersTabSelector);
-          return this.#br.isVisible(this.adminArea.users.waitingUsersTabSelector);
+          return this.isVisible(this.adminArea.users.waitingUsersTabSelector);
         },
 
         switchToNew: () => {
@@ -6309,7 +6299,7 @@ export class TyE2eTestBrowser {
         },
 
         areTopicSectionSettingsVisible: () => {
-          return this.#br.isVisible('.e_DscPrgSct');
+          return this.isVisible('.e_DscPrgSct');
         },
 
         setSortOrder: (value: number) => {
@@ -6390,7 +6380,7 @@ export class TyE2eTestBrowser {
           while (true) {
             this.#br.pause(c.JanitorThreadIntervalMs + 200);
             if (!pageId) {
-              if (!this.#br.isVisible('.s_A_Rvw_Tsk_UndoB'))
+              if (!this.isVisible('.s_A_Rvw_Tsk_UndoB'))
                 break;
             }
             else {
@@ -6400,9 +6390,9 @@ export class TyE2eTestBrowser {
               assert(_.isNumber(postNr));
               const pagePostSelector = '.e_Pg-Id-' + pageId + '.e_P-Nr-' + postNr;
               const anyButtonsVisible = (
-                this.#br.isVisible(pagePostSelector + ' .s_A_Rvw_Tsk_UndoB') ||
-                this.#br.isVisible(pagePostSelector + ' .e_A_Rvw_Tsk_AcptB') ||
-                this.#br.isVisible(pagePostSelector + ' .e_A_Rvw_Tsk_RjctB'));
+                this.isVisible(pagePostSelector + ' .s_A_Rvw_Tsk_UndoB') ||
+                this.isVisible(pagePostSelector + ' .e_A_Rvw_Tsk_AcptB') ||
+                this.isVisible(pagePostSelector + ' .e_A_Rvw_Tsk_RjctB'));
               if (!anyButtonsVisible)
                 break;
             }
@@ -6449,7 +6439,7 @@ export class TyE2eTestBrowser {
         },
 
         isMoreStuffToReview: () => {
-          return this.#br.isVisible('.e_A_Rvw_Tsk_AcptB');
+          return this.isVisible('.e_A_Rvw_Tsk_AcptB');
         },
 
         waitForTextToReview: (text, ps: { index?: number } = {}) => {
@@ -6465,7 +6455,7 @@ export class TyE2eTestBrowser {
           this.$$('.esReviewTask_it').length,
 
         isTasksPostDeleted: (taskIndex: number): boolean => {
-          return this.#br.isVisible(`.e_RT-Ix-${taskIndex}.e_P-Dd`);
+          return this.isVisible(`.e_RT-Ix-${taskIndex}.e_P-Dd`);
         }
       },
 
@@ -6535,7 +6525,7 @@ export class TyE2eTestBrowser {
 
       isInviteAgainVisible: (): boolean => {
         this.waitForVisible('.s_InvD .btn-primary');
-        return this.#br.isVisible('.e_InvAgain');
+        return this.isVisible('.e_InvAgain');
       }
     };
 
@@ -6608,7 +6598,7 @@ export class TyE2eTestBrowser {
         this.rememberCurrentUrl();
         this.waitAndClick('input[type="submit"]');
         this.waitForNewUrl();
-        this.#br.waitForVisible('#e2eBeenUnsubscribed');
+        this.waitForDisplayed('#e2eBeenUnsubscribed');
       },
     };
 
@@ -6703,9 +6693,9 @@ export class TyE2eTestBrowser {
         // Nr 1 is a help text, nr 2 is the first diff entry — so add +1.
         const selector =
             `.dw-edit-history .modal-body > div > .ed-revision:nth-child(${editEntryNr + 1})`;
-        this.#br.waitForVisible(selector);
+        this.waitForDisplayed(selector);
         const authorUsername = this.waitAndGetVisibleText(selector + ' .dw-username');
-        const diffHtml = this.#br.getHTML(selector + ' pre');
+        const diffHtml = this.$(selector + ' pre').getHTML();
         return {
           authorUsername,
           diffHtml,
@@ -6805,12 +6795,12 @@ export class TyE2eTestBrowser {
         // than just waiting for a while. It appears within about a second.
         // Note that this is also used to test that the tour *does* appear fast enough,
         // not only that it does *not* appear — to test, that this test, works.)
-        this.waitUntil(() => this.#br.isVisible('.s_Tour'), {
+        this.waitUntil(() => this.isVisible('.s_Tour'), {
           timeoutMs: 3500,
           timeoutIsFine: true,
           message: `Will the intro tour start? ...`,
         });
-        assert.equal(this.#br.isVisible('.s_Tour'), shallStart);
+        assert.equal(this.isVisible('.s_Tour'), shallStart);
       },
 
       clickNextForStepNr: (stepNr: number) => {
@@ -6941,10 +6931,10 @@ export class TyE2eTestBrowser {
       },
 
       closeSidebars: () => {
-        if (this.#br.isVisible('#esWatchbarColumn')) {
+        if (this.isVisible('#esWatchbarColumn')) {
           this.watchbar.close();
         }
-        if (this.#br.isVisible('#esThisbarColumn')) {
+        if (this.isVisible('#esThisbarColumn')) {
           this.contextbar.close();
         }
       },
@@ -7129,7 +7119,7 @@ export class TyE2eTestBrowser {
         this.assertPageTitleMatches(data.name);
       },
 
-      addPeopleToPageViaContextbar(usernames: string[]) {
+      addPeopleToPageViaContextbar: (usernames: string[]) => {
         this.contextbar.clickAddPeople();
         _.each(usernames, this.addUsersToPageDialog.addOneUser);
         this.addUsersToPageDialog.submit({ closeStupidDialogAndRefresh: true });

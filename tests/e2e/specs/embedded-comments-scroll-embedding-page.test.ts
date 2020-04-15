@@ -11,10 +11,7 @@ import make = require('../utils/make');
 import logAndDie = require('../utils/log-and-die');
 import c = require('../test-constants');
 
-let browser: TyE2eTestBrowser;
-
-let everyonesBrowsers;
-let maria;
+let maria: Member;
 let mariasBrowser: TyE2eTestBrowser;
 let strangersBrowser: TyE2eTestBrowser;
 
@@ -34,8 +31,7 @@ const pageTallerSlug = 'emb-cmts-taller.html';
 describe("embedded-comments-scroll  TyT2K4DHR49", () => {
 
   it("initialize people", () => {
-    everyonesBrowsers = new TyE2eTestBrowser(wdioBrowser);
-    mariasBrowser = everyonesBrowsers;
+    mariasBrowser = new TyE2eTestBrowser(wdioBrowser);;
     maria = make.memberMaria();
   });
 

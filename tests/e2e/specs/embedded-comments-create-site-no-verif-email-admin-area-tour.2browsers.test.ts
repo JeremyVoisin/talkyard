@@ -73,20 +73,28 @@ describe("embedded comments, new site, admin tour  TyT6KRKV20", () => {
     }
   }
 
-  it('Owen creates an embedded comments site as a Password user  @login @password', () => {
+  it('Owen creates an embedded comments site as a Password user  @login @password:', () => {
     // Dupl code [502SKHFSKN53]
     data = createPasswordTestData();
     owensBrowser.go(utils.makeCreateEmbeddedSiteWithFakeIpUrl());
     owensBrowser.disableRateLimits();
+  });
+
+  it(`... He fills in fields`, () => {
     owensBrowser.createSite.fillInFieldsAndSubmit(data);
     // New site; disable rate limits here too.
     owensBrowser.disableRateLimits();
 
     owensBrowser.tour.runToursAlthoughE2eTest();
+  });
 
+  it(`... Sings up as owner, at the new site`, () => {
     owensBrowser.createSite.clickOwnerSignupButton();
-    owensBrowser.loginDialog.createPasswordAccount(data, true);
-    const siteId = owensBrowser.getSiteId();
+    owensBrowser.loginDialog.createPasswordAccount({ ...data, shallBecomeOwner: true });
+  });
+
+  it(`... Clicks an email verification link`, () => {
+    siteId = owensBrowser.getSiteId();
     const email = server.getLastEmailSenTo(siteId, data.email, wdioBrowserA);
     const link = utils.findFirstLinkToUrlIn(
         data.origin + '/-/login-password-confirm-email', email.bodyHtmlText);

@@ -141,12 +141,13 @@ function constructSsoLoginTest(testName: string, variants: {
 
   // ------ Maria logs in via SSO
 
-  const willBeInstantRedirect = variants.loginRequired && variants.ssoLoginRequiredLogoutUrl;
+  const willBeInstantRedirect = !!(
+      variants.loginRequired && variants.ssoLoginRequiredLogoutUrl);
 
   it("Maria goes to the discussion page", () => {
     // (Don't try to disable rate limits, if there'll be an instant redirect
     // — that'd cause "Error: unable to set cookie". )
-    mariasBrowser.go(discussionPageUrl, {
+    mariasBrowser.go2(discussionPageUrl, {
       useRateLimits: willBeInstantRedirect,
       // Will get redirected directly to a non-existing dummy login page, different origin.
       // There's an harmles error, with WebDriver [E2ESSOLGIREDR].

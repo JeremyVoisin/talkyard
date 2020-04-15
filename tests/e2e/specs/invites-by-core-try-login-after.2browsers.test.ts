@@ -73,7 +73,8 @@ describe("invites-by-core-try-login-after TyT2WKF5PF30", () => {
   });
 
   it("... it appears in the Invites-Sent list", () => {
-    coraxBrowser.invitedUsersList.waitAssertInviteRowPresent(1, { email: janesEmailAddress });
+    coraxBrowser.invitedUsersList.waitAssertInviteRowPresent(
+        1, { email: janesEmailAddress, accepted: false });
     assert(coraxBrowser.invitedUsersList.countNumInvited() === 1);
     coraxBrowser.invitedUsersList.assertHasNotAcceptedInvite(janesUsername);
   });

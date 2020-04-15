@@ -226,7 +226,6 @@ describe("many-users-mention-list-join-group  TyT0326SKDGW2", () => {
   });
 
   it("Maria mentions one of the Uppercase username minions too: types Minion_Mina103", () => {
-mariasBrowser.debug();
     mariasBrowser.editor.editText(` and @Minion_Mina103`, { append: true });
   });
 
@@ -236,7 +235,6 @@ mariasBrowser.debug();
   });
 
   it("... hits Enter to select @Minion_Mina103", () => {
-mariasBrowser.debug();
     mariasBrowser.keys(['Enter']);
   });
 

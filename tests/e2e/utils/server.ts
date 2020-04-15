@@ -284,7 +284,7 @@ function getLastEmailSenTo(siteId: SiteId, email: string, browser): EmailSubject
     }
     // Internal functions can pass false, if they pause themselves.
     if (browser !== false) {
-      wdioBrowserA.pause(500 - 100); // 100 ms for a request, perhaps?
+      (wdioBrowserA || wdioBrowser).pause(500 - 100); // 100 ms for a request, perhaps?
     }
     else {
       return null;
@@ -395,7 +395,7 @@ function waitForUnsubscriptionLinkEmailedTo(siteId: SiteId, emailAddress: string
     const email = getLastEmailSenTo(siteId, emailAddress, false);
     const link = !email ? null : utils.findAnyFirstLinkToUrlIn(unsubUrlRegexString, email.bodyHtmlText);
     if (!link)
-      (browser || wdioBrowserA).pause(500 - 100); // 100 ms for a request, perhaps?
+      (wdioBrowserA || wdioBrowser).pause(500 - 100); // 100 ms for a request, perhaps?
     else
       return link;
   }
@@ -444,7 +444,7 @@ function waitUntilLastEmailMatches(siteId: SiteId, emailAddress: string,
         '\n');
     }
 
-    (browser || wdioBrowserA).pause(500 - 50);
+    (wdioBrowserA || wdioBrowser).pause(500 - 50);
   }
   const missesString = misses.join(', ');
   die(`Never got any email to ${emailAddress} matching ${missesString} [EdE5JGK2Q1]`);

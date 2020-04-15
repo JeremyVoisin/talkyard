@@ -140,7 +140,7 @@ describe("priv chat", () => {
 
   it("... won't find the topic via search", () => {
     strangersBrowser.topbar.searchFor(coolWord);
-    strangersBrowser.searchResultsPage.assertPhraseNotFound(coolWord, 1);
+    strangersBrowser.searchResultsPage.assertPhraseNotFound(coolWord);
   });
 
   it("... cannot access via direct link", () => {
@@ -164,7 +164,7 @@ describe("priv chat", () => {
 
   it("... won't find the topic via search", () => {
     guestsBrowser.topbar.searchFor(coolWord);
-    guestsBrowser.searchResultsPage.assertPhraseNotFound(coolWord, 1);
+    guestsBrowser.searchResultsPage.assertPhraseNotFound(coolWord);
   });
 
   it("... cannot access via direct link", () => {

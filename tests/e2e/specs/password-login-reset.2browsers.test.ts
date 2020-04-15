@@ -54,14 +54,14 @@ describe("password-login-reset  TyT5KAES20W", function() {
 
   it("... and can logout", function() {
     //everyone.topbar.clickLogout(); [EVRYBUG]
-    browserA.topbar.clickLogout();
-    browserB.topbar.clickLogout();
+    owen.topbar.clickLogout();
+    michael.topbar.clickLogout();
   });
 
   it("But they cannot login with the wrong password (they forgot the real ones)", () => {
     //everyone.topbar.clickLogin(); [EVRYBUG]
-    browserA.topbar.clickLogin();
-    browserB.topbar.clickLogin();
+    owen.topbar.clickLogin();
+    michael.topbar.clickLogin();
   });
 
   it("... Owen cannot", function() {

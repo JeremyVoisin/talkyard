@@ -71,7 +71,7 @@ describe("invites-by-mod-try-signup-after TyT4FGJA20M", () => {
 
   it("... it appears in the Invites-Sent list", () => {
     modyasBrowser.invitedUsersList.waitAssertInviteRowPresent(
-        1, { email: janesEmailAddress, sentByUsername: modya.username });
+        1, { email: janesEmailAddress, accepted: false, sentByUsername: modya.username });
     assert(modyasBrowser.invitedUsersList.countNumInvited() === 1);
     modyasBrowser.invitedUsersList.assertHasNotAcceptedInvite(janesUsername);
   });

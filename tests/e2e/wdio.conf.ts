@@ -369,6 +369,24 @@ const config: WebdriverIO.Config = {
     global.wdioBrowserB = global.browserB; // only in multiremote tests
     global.wdioBrowserC = global.browserC; //  — "" —
 
+    // Extremely confusing if calling the wrong $, e.g.:
+    //   $('#e_TermsL').getHTML();
+    // instead of:
+    //   this.$('#e_TermsL').getHTML();
+    // The former silently blocks forever, waiting for a  #e_TermsL  elem to appear
+    // — in the wrong browser session.  (But with trace log level one can study the
+    // logs and eventually find out it's a different browser session.)
+    //
+    global.$ = (selector) => {
+      lad.die(`You called the global $ but it might be bound to the wrong browser session; ` +
+          `use:  this.$(...)  instead.  You did:  $('${selector}')  [TyEBADDOLLAR]`);
+    }
+
+    global.$$ = (selector) => {
+      lad.die(`You called the global $$ but it might be bound to the wrong browser session; ` +
+          `use:  this.$$(...)  instead.  You did:  $$('${selector}')  [TyEBADDOLLARS]`);
+    }
+
     if (settings.debugBefore) {
       console.log("*** Paused, just before starting test. Now you can connect a debugger. ***");
       global.browser.debug();
