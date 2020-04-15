@@ -971,11 +971,11 @@ trait UserSiteDaoMixin extends SiteTransaction {
       order by lower(u.username)
       limit $limit
       """
-    var values = List(siteId.asAnyRef)
+    val values = ArrayBuffer(siteId.asAnyRef)
     if (andUsernameLike.nonEmpty) {
-      values ::= usernamePrefix + '%'
+      values.append(usernamePrefix + '%')
     }
-    runQueryFindMany(query, values, getUser)
+    runQueryFindMany(query, values.toList, getUser)
   }
 
 
