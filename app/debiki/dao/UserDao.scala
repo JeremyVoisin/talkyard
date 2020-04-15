@@ -1556,8 +1556,21 @@ trait UserDao {
     readOnlyTransaction(_.listUsersNotifiedAboutPost(postId))
 
 
-  def listUsernames(pageId: PageId, prefix: String): Seq[NameAndUsername] =
-    readOnlyTransaction(_.listUsernames(pageId = pageId, prefix = prefix))
+  def listUsernames(pageId: PageId, prefix: String, caseSensitive: Boolean, limit: Int)
+        : Seq[NameAndUsername] = {
+    readOnlyTransaction(tx => {
+      if (prefix.isEmpty) {
+        COULD_OPTIMIZE // could cache, + maybe use 'limit'?
+        tx.listUsernamesOnPage(pageId)
+      }
+      else {
+        COULD_OPTIMIZE // needn't load throw away not-needed fields. [ONLYNAME]
+        loadUsersWithUsernamePrefix(
+          prefix, caseSensitive = caseSensitive, limit = limit)
+          .map(_.nameAndUsername)
+      }
+    })
+  }
 
 
   def savePageNotfPref(pageNotfPref: PageNotfPref, byWho: Who) {
