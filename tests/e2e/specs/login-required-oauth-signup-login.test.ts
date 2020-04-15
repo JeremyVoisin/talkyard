@@ -77,8 +77,11 @@ describe(`${testName}  TyT406MRTJW2`, () => {
   // ---------- Login with OpenAuth, when wesite requires login
 
 
-  it("Can log in with Gmail @login @gmail @google", () => {
+  it("Reloads the page", () => {
     browser.refresh();
+  });
+
+  it("Can log in with Gmail @login @gmail @google", () => {
     browser.loginDialog.loginWithGmail({
       email: settings.gmailEmail,
       password: settings.gmailPassword,

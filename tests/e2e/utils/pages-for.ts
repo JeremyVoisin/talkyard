@@ -7,7 +7,7 @@ import * as tyAssert from '../utils/ty-assert';
 // ... Use die() and dieIf(), though, if an e2e test is broken
 // (rather than Talkyard itself).
 import { getOrCall, die, dieIf, logUnusual, logDebug, logError, logWarning, logWarningIf,
-    logException, logMessage, logBoring,
+    logException, logMessage, logMessageIf, logBoring,
     logServerRequest, printBoringToStdout } from './log-and-die';
 
 import * as path from 'path';
@@ -3053,10 +3053,19 @@ export class TyE2eTestBrowser {
         // the Gmail login widgets to load, or for us to be back in Talkyard again.
         while (true) {
           if (ps.isInFullScreenLogin) {
-            if (this.isExisting('.dw-login-modal')) {
-              // We're back in Talkyard.
+            // If logged in both at Google and Ty directly: There's a race?
+            // Sometimes we'll see Ty's login dialog briefly before it closes and
+            // one's username appears. — This is fine, the tests should work anyway.
+            const googleLoginDone = this.isExisting('.dw-login-modal');
+            logMessageIf(googleLoginDone,
+                `Got logged in directly at Google`);
+
+            const googleAndTalkyardLoginDone = this.isExisting('.esMyMenu .esAvtrName_name');
+            logMessageIf(googleAndTalkyardLoginDone,
+                `Got logged in directly at both Google and Talkyard`);
+
+            if (googleLoginDone || googleAndTalkyardLoginDone)
               return;
-            }
           }
           else if (this.loginDialog.loginPopupClosedBecauseAlreadyLoggedIn()) {
             // We're back in Talkyard.
@@ -3325,7 +3334,7 @@ export class TyE2eTestBrowser {
         }
       },
 
-      loginPopupClosedBecauseAlreadyLoggedIn: () => {
+      loginPopupClosedBecauseAlreadyLoggedIn: (): boolean => {
         try {
           logMessage("checking if we got logged in instantly... [EdM2PG44Y0]");
           const yes = this.numWindowsOpen() === 1;// ||  // login tab was auto closed
