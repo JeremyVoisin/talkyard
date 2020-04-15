@@ -21,7 +21,7 @@ describe('create-site-linkedin  @createsite @login @linkedin  TyT8KA9AW3', () =>
   }
 
   it('initialize', () => {
-    browser = new TyE2eTestBrowser(browserA);
+    browser = new TyE2eTestBrowser(wdioBrowser);
   });
 
   it('can create a new site as a LinkedIn user, when not logged in to LinkedIn', () => {

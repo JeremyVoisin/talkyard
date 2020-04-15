@@ -140,7 +140,16 @@ function isResponseOk(response): boolean {
   return response._status === 0;
 }
 
-function isBadElemException(ex) {
+function isWindowClosedException(ex): boolean {
+  const windowAlreadyClosedExceptionText =
+      // The full text is: "no such window: window was already closed"
+      'window was already closed';
+
+  return ex.toString?.().toLowerCase().indexOf(
+      windowAlreadyClosedExceptionText) >= 0;
+}
+
+function isBadElemException(ex): boolean {
   // Webdriver says one of these: (what's the difference?)
   const StaleElem1 = 'Request encountered a stale element';
   const StaleElem2 = 'stale element reference: element is not attached to the page document'
@@ -3302,8 +3311,12 @@ export class TyE2eTestBrowser {
           }
         }
         catch (ex) {
-          logMessage("Didn't need to click Allow button: Exception caught, login popup closed itself?");
-          logException(ex);
+          const seemsFine = isWindowClosedException(ex);
+          logMessage("Didn't need to click Allow button: " + (
+              seemsFine ? "The login popup window closed itself." : "Unexpected exception:"));
+          if (!seemsFine) {
+            logException(ex);
+          }
         }
 
         if (!data.isInPopupAlready) {
